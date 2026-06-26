@@ -1,0 +1,73 @@
+name: verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install semgrep
+        run: pip install semgrep
+
+      - name: Run gates on every committed rule
+        shell: bash
+        run: |
+          shopt -s nullglob
+          rules=(rules/*.yaml)
+          if [ ${#rules[@]} -eq 0 ]; then
+            echo "No rules to verify (rules/ is empty). Skipping."
+            exit 0
+          fi
+
+          count() {
+            semgrep --config "$1" "$2" --json --quiet \
+              | python -c "import sys, json; print(len(json.load(sys.stdin)['results']))"
+          }
+
+          fail=0
+
+          # Rule -> incident: every committed rule must flag bad.py, pass good.py.
+          for rule in "${rules[@]}"; do
+            id="$(basename "${rule%.yaml}")"
+            bad="incidents/${id}/bad.py"
+            good="incidents/${id}/good.py"
+
+            if [ ! -f "$bad" ] || [ ! -f "$good" ]; then
+              echo "DRIFT: $rule has no matching incident at incidents/${id}/"
+              fail=1
+              continue
+            fi
+
+            bad_count="$(count "$rule" "$bad")"
+            good_count="$(count "$rule" "$good")"
+
+            if [ "$bad_count" -lt 1 ]; then
+              echo "FAIL ${id}: expected >=1 finding on bad.py, got ${bad_count}"
+              fail=1
+            elif [ "$good_count" -ne 0 ]; then
+              echo "FAIL ${id}: expected 0 findings on good.py, got ${good_count}"
+              fail=1
+            else
+              echo "PASS ${id}"
+            fi
+          done
+
+          # Incident -> rule: an incident with no compiled rule is drift.
+          for incident in incidents/*/; do
+            id="$(basename "$incident")"
+            if [ ! -f "rules/${id}.yaml" ]; then
+              echo "DRIFT: incident ${id} has no compiled rule in rules/"
+              fail=1
+            fi
+          done
+
+          exit $fail
