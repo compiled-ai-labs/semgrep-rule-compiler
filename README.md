@@ -63,6 +63,27 @@ into the prompt and it retries, up to three times.
 - Taint-mode rules for dataflow incidents.
 - Autofix suggestions, gated the same way.
 
+## Collaborate
+
+This is the first reference implementation of the Compiled AI paradigm — an
+LLM authors deterministic artifacts at compile time, runtime stays free of
+inference. The same shape fits OPA policies, Terraform modules, GitHub
+Actions workflows, CODEOWNERS, Dependabot configs, and more.
+
+Three ways to get involved:
+
+- **Use it.** Open an issue with a rule pattern you'd want compiled, or
+  drop a postmortem snippet you'd turn into a Semgrep rule.
+- **Extend it.** PRs for new languages (Go, JS/TS), taint-mode rules, or
+  autofix suggestions — all gated the same way.
+- **Build the next compiler.** If you have a deterministic tool that
+  consumes config or rules (OPA, Terraform, GitHub Actions, an in-house
+  policy engine), open an issue describing the use case. I'm actively
+  building out the `compiled-ai-labs` org and looking for collaborators
+  on adjacent compile targets.
+
+Contact: open an issue here, or `compiledailabs@gmail.com`.
+
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).
