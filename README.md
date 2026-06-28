@@ -63,6 +63,28 @@ into the prompt and it retries, up to three times.
 - Taint-mode rules for dataflow incidents.
 - Autofix suggestions, gated the same way.
 
+## Related work
+
+- **Autogrep** — LLM plus a multi-stage filtering pipeline that turns vulnerability
+  patches into Semgrep rules across 20 languages. It mines rules in bulk from public
+  patches and filters out the overly specific ones; this compiles one rule per
+  human-written incident and gate-verifies it against that incident's bad/good pair
+  before commit.
+- **RuleLLM** (arXiv:2504.17198) — generates YARA and Semgrep rules from
+  malicious-package metadata, with refine and align stages and an agent to curb
+  hallucination. It self-checks with more model calls; this defers the check to
+  Semgrep itself running on known samples.
+- **SemOpt** (arXiv:2510.16384) — an LLM agent that derives a Semgrep rule from a
+  commit's optimization strategy and retries until the rule executes. Its loop gates
+  on "the rule runs," not on "the rule fires on the bad case and stays silent on the
+  good one."
+- **semgrep/semgrep-rules** — the curated community ruleset, hand-maintained by
+  Semgrep and contributors. A fixed expert catalog; this compiles rules from your
+  own incidents instead of shipping a registry.
+- **Semgrep Assistant** — Semgrep's in-platform AI for suggesting rules and triaging
+  findings. Runtime, SaaS-coupled assistance; this keeps the model offline at compile
+  time and leaves no inference in the scan path.
+
 ## Collaborate
 
 This is the first reference implementation of the Compiled AI paradigm — an
