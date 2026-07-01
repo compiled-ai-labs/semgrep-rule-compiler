@@ -1,13 +1,17 @@
-"""The compiler: turn each incident into a gate-verified Semgrep rule.
+"""The compiler: turn each spec into a gate-verified Semgrep rule.
 
-The LLM runs here, at compile time. For each incident the compiler renders a
-prompt, calls Anthropic, and runs the four validation gates. A rule is written
-to rules/ only when every gate passes. Up to three attempts per incident,
-feeding the validator's exact error back into the prompt on each retry.
+The LLM runs here, at compile time. The primary input is a prose source document
+(source.md) that states a general principle. Two concrete fixtures (bad.py,
+good.py) are demoted to edge checks: they gate the rule but do not define it. The
+rule must generalise from the prose, not overfit the fixtures.
 
-Incidents are independent. A single incident failing its gates after three
-attempts does not abort the run and does not discard rules already written for
-other incidents.
+For each spec the compiler renders a prompt, calls Anthropic, and runs the four
+validation gates. A rule is written only when every gate passes. Up to three
+attempts per spec, feeding the validator's exact error back into the prompt.
+
+Specs are independent. A single spec failing its gates after three attempts does
+not abort the run and does not discard rules already written for other specs. A
+spec the model declares UNEXPRESSIBLE is recorded and skipped, not failed.
 """
 from __future__ import annotations
 
@@ -21,74 +25,88 @@ from srcompile.validator import GateResult, run_gates
 
 MAX_ATTEMPTS = 3
 DEFAULT_MODEL = "claude-opus-4-8"
-PROMPT_TEMPLATE = Path(__file__).parent / "prompts" / "rule_from_incident.md"
+UNEXPRESSIBLE = "UNEXPRESSIBLE:"
+PROMPT_TEMPLATE = Path(__file__).parent / "prompts" / "rule_from_source.md"
 
 
 @dataclass
-class IncidentResult:
-    """What happened when compiling one incident."""
+class SpecResult:
+    """What happened when compiling one spec.
 
-    incident_id: str
-    compiled: bool
+    status is one of:
+      "compiled" — all gates passed; rule_text is written to the artifact folder.
+      "failed"   — gates still failing after MAX_ATTEMPTS; detail holds the errors.
+      "skipped"  — model returned UNEXPRESSIBLE; detail holds the stated reason.
+    """
+
+    spec_id: str
+    status: str
     attempts: int
     rule_text: str | None = None
-    failure: str | None = None
+    detail: str | None = None
 
 
-def compile_all(spec_dir: Path, artifact_dir: Path) -> list[IncidentResult]:
-    """Compile every incident in spec_dir, writing passing rules to artifact_dir.
+def compile_all(spec_dir: Path, artifact_dir: Path) -> list[SpecResult]:
+    """Compile every spec in spec_dir, writing passing rules to artifact_dir.
 
-    Returns one IncidentResult per incident, in folder order. The caller decides
-    the exit code: any incident with compiled=False means the run failed.
+    Returns one SpecResult per spec, in folder order. The caller decides the exit
+    code: any "failed" spec means the run failed. "skipped" specs do not.
     """
     client = Anthropic()
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    results: list[IncidentResult] = []
+    results: list[SpecResult] = []
     for folder in sorted(p for p in spec_dir.iterdir() if p.is_dir()):
-        if not (folder / "incident.md").exists():
+        if not (folder / "source.md").exists():
             continue
-        result = compile_incident(client, folder)
-        if result.compiled and result.rule_text is not None:
-            out = artifact_dir / f"{result.incident_id}.yaml"
+        result = compile_spec(client, folder)
+        if result.status == "compiled" and result.rule_text is not None:
+            out = artifact_dir / f"{result.spec_id}.yaml"
             out.write_text(result.rule_text.rstrip() + "\n", encoding="utf-8")
         results.append(result)
     return results
 
 
-def compile_incident(client: Anthropic, folder: Path) -> IncidentResult:
-    """Run the three-attempt compile loop for a single incident folder."""
-    incident_id = folder.name
-    inputs = _read_incident(folder)
+def compile_spec(client: Anthropic, folder: Path) -> SpecResult:
+    """Run the three-attempt compile loop for a single spec folder."""
+    spec_id = folder.name
+    inputs = _read_spec(folder)
     feedback: str | None = None
     last_failure = ""
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         prompt = _render_prompt(inputs, feedback)
-        rule_text = _call_llm(client, prompt)
+        output = _call_llm(client, prompt)
+
+        if output.startswith(UNEXPRESSIBLE):
+            reason = output[len(UNEXPRESSIBLE):].strip()
+            return SpecResult(
+                spec_id=spec_id, status="skipped", attempts=attempt, detail=reason
+            )
+
         result: GateResult = run_gates(
-            rule_text, folder / "bad.py", folder / "good.py"
+            output, folder / "bad.py", folder / "good.py"
         )
         if result.passed:
-            return IncidentResult(
-                incident_id=incident_id,
-                compiled=True,
+            return SpecResult(
+                spec_id=spec_id,
+                status="compiled",
                 attempts=attempt,
-                rule_text=rule_text,
+                rule_text=output,
             )
         feedback = result.feedback()
         last_failure = feedback
 
-    return IncidentResult(
-        incident_id=incident_id,
-        compiled=False,
+    return SpecResult(
+        spec_id=spec_id,
+        status="failed",
         attempts=MAX_ATTEMPTS,
-        failure=last_failure,
+        detail=last_failure,
     )
 
 
-def _read_incident(folder: Path) -> dict[str, str]:
+def _read_spec(folder: Path) -> dict[str, str]:
     return {
-        "description": (folder / "incident.md").read_text(encoding="utf-8").strip(),
+        "source": (folder / "source.md").read_text(encoding="utf-8").strip(),
         "bad_code": (folder / "bad.py").read_text(encoding="utf-8").strip(),
         "good_code": (folder / "good.py").read_text(encoding="utf-8").strip(),
     }
@@ -104,7 +122,7 @@ def _render_prompt(inputs: dict[str, str], prior_failure: str | None) -> str:
             f"```\n{prior_failure}\n```\n"
         )
     return (
-        template.replace("{{DESCRIPTION}}", inputs["description"])
+        template.replace("{{SOURCE}}", inputs["source"])
         .replace("{{BAD_CODE}}", inputs["bad_code"])
         .replace("{{GOOD_CODE}}", inputs["good_code"])
         .replace("{{RETRY_FEEDBACK}}", retry_block)

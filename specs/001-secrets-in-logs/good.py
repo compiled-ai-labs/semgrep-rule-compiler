@@ -4,7 +4,7 @@ log = logging.getLogger(__name__)
 
 
 def authenticate(token: str) -> None:
-    log.info("authenticating request")
+    log.info("auth request received")
     _verify(token)
 
 

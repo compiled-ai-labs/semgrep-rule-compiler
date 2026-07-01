@@ -35,14 +35,14 @@ jobs:
 
           fail=0
 
-          # Rule -> incident: every committed rule must flag bad.py, pass good.py.
+          # Rule -> spec: every committed rule must flag bad.py, pass good.py.
           for rule in "${rules[@]}"; do
             id="$(basename "${rule%.yaml}")"
-            bad="incidents/${id}/bad.py"
-            good="incidents/${id}/good.py"
+            bad="specs/${id}/bad.py"
+            good="specs/${id}/good.py"
 
             if [ ! -f "$bad" ] || [ ! -f "$good" ]; then
-              echo "DRIFT: $rule has no matching incident at incidents/${id}/"
+              echo "DRIFT: $rule has no matching spec at specs/${id}/"
               fail=1
               continue
             fi
@@ -61,11 +61,11 @@ jobs:
             fi
           done
 
-          # Incident -> rule: an incident with no compiled rule is drift.
-          for incident in incidents/*/; do
-            id="$(basename "$incident")"
+          # Spec -> rule: a spec with no compiled rule is drift.
+          for spec in specs/*/; do
+            id="$(basename "$spec")"
             if [ ! -f "rules/${id}.yaml" ]; then
-              echo "DRIFT: incident ${id} has no compiled rule in rules/"
+              echo "DRIFT: spec ${id} has no compiled rule in rules/"
               fail=1
             fi
           done

@@ -3,7 +3,7 @@ Run the compiler for this compiled-ai repo.
 Steps:
 
 1. Verify `ANTHROPIC_API_KEY` is set in the environment. If not, stop and tell the user.
-2. Read CLAUDE.md to find the compile entry point (e.g. `uv run srcompile build ./incidents`).
+2. Read CLAUDE.md to find the compile entry point (e.g. `uv run srcompile build ./specs`).
 3. Run the entry point. Stream output.
 4. After it finishes, report per spec entry:
    - Compiled cleanly (artifact written)
