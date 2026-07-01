@@ -25,19 +25,19 @@ jobs:
       - name: Sync dependencies
         run: uv sync
 
-      - name: Compile rules from incidents
+      - name: Compile rules from specs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SRCOMPILE_MODEL: ${{ vars.SRCOMPILE_MODEL }}
-        run: uv run srcompile build ./incidents
+        run: uv run srcompile build ./specs
 
       - name: Open PR with regenerated rules
         uses: peter-evans/create-pull-request@v6
         with:
-          commit-message: Recompile rules from incidents
+          commit-message: Recompile rules from specs
           title: Recompile rules
           body: |
-            Regenerated `rules/` by running `srcompile build ./incidents`.
+            Regenerated `rules/` by running `srcompile build ./specs`.
 
             Each rule passed the four gates: YAML parse, `semgrep --validate`,
             flags `bad.py`, passes `good.py`. Review before merge. Not auto-merged.

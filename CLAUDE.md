@@ -6,15 +6,15 @@ See the `compiled-ai` skill for the full paradigm and conventions. If the skill 
 
 ## This repo
 
-- **One-liner:** Compile postmortems and code samples into Semgrep rules.
-- **Spec folder:** `incidents/`
-- **Compiler entry:** `uv run srcompile build ./incidents`
+- **One-liner:** Compile prose coding standards and incident writeups into Semgrep rules.
+- **Spec folder:** `specs/` — each entry is `source.md` (prose, primary), `bad.py`, `good.py`.
+- **Compiler entry:** `uv run srcompile build ./specs`
 - **Artifact folder:** `rules/`
 - **Runtime tool:** `semgrep`
 
 ## The pattern (always)
 
-1. **Spec** — markdown plus minimal worked examples (bad/good pairs, sample inputs). Source of truth. Human-maintained.
+1. **Spec** — a prose `source.md` (coding standard or incident writeup) stating a general principle, plus `bad.py`/`good.py` fixtures as edge checks. The prose is primary and is what makes the LLM mandatory; the fixtures gate but do not define the rule. Source of truth. Human-maintained.
 2. **Compiler** — `src/<package>/compiler.py`. Calls LLM with a templated prompt. Runs offline.
 3. **Validation gates** — `src/<package>/validator.py`. Non-negotiable. Parse, lint, functional verdict on known cases.
 4. **Artifact** — committed file. Reviewable like any code. Versioned. Pinned by consumers.
