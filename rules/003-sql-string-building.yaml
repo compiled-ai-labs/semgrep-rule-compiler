@@ -1,0 +1,11 @@
+rules:
+  - id: sql-execute-string-building
+    languages: [python]
+    severity: ERROR
+    message: SQL statement built by string formatting or concatenation. Use bound parameters instead of f-strings, .format, or + concatenation in execute().
+    patterns:
+      - pattern-either:
+          - pattern: $CURSOR.execute(f"...", ...)
+          - pattern: $CURSOR.execute("...".format(...), ...)
+          - pattern: $CURSOR.execute($X + $Y, ...)
+          - pattern: $CURSOR.execute("..." % $ARGS, ...)

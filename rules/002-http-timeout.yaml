@@ -1,0 +1,23 @@
+rules:
+  - id: requests-call-without-timeout
+    languages: [python]
+    severity: WARNING
+    message: Outbound HTTP call via requests without an explicit timeout can hang indefinitely under partial degradation. Set an explicit timeout argument.
+    patterns:
+      - pattern-either:
+          - pattern: requests.get(...)
+          - pattern: requests.post(...)
+          - pattern: requests.put(...)
+          - pattern: requests.delete(...)
+          - pattern: requests.head(...)
+          - pattern: requests.patch(...)
+          - pattern: requests.options(...)
+          - pattern: requests.request(...)
+      - pattern-not: requests.get(..., timeout=$T, ...)
+      - pattern-not: requests.post(..., timeout=$T, ...)
+      - pattern-not: requests.put(..., timeout=$T, ...)
+      - pattern-not: requests.delete(..., timeout=$T, ...)
+      - pattern-not: requests.head(..., timeout=$T, ...)
+      - pattern-not: requests.patch(..., timeout=$T, ...)
+      - pattern-not: requests.options(..., timeout=$T, ...)
+      - pattern-not: requests.request(..., timeout=$T, ...)
