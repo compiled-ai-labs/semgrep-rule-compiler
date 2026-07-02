@@ -10,6 +10,7 @@ dependencies = [
     "anthropic>=0.40",
     "pyyaml>=6.0",
     "click>=8.1",
+    "semgrep>=1.168.0",
 ]
 
 [project.scripts]
